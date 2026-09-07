@@ -1,5 +1,5 @@
 type Env = {
-  ASSETS: Fetcher;
+  ASSETS: { fetch(request: Request): Promise<Response> };
   STRIPE_SECRET_KEY: string;
   SITE_URL?: string;
 };
