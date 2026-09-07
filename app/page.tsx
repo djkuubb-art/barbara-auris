@@ -40,6 +40,8 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [analysisStage, setAnalysisStage] = useState(0);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
 
   const seed = useMemo(() => hashSeed(Object.values(data).join("|")), [data]);
   const compatibility = scoreFrom(seed, 1, 76, 93);
@@ -89,6 +91,40 @@ export default function HomePage() {
     }, 4700);
   }
 
+  async function startCheckout() {
+    if (checkoutLoading) return;
+
+    setCheckoutLoading(true);
+    setCheckoutError("");
+
+    try {
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          analysis: {
+            ...data,
+            compatibility,
+            attraction,
+            emotions,
+            communication,
+          },
+        }),
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok || !payload?.url) {
+        throw new Error(payload?.error || "Nie udało się uruchomić płatności.");
+      }
+
+      window.location.href = payload.url;
+    } catch (error) {
+      setCheckoutError(error instanceof Error ? error.message : "Nie udało się uruchomić płatności.");
+      setCheckoutLoading(false);
+    }
+  }
+
   if (showResult) {
     return (
       <main className="page-shell result-shell">
@@ -132,11 +168,14 @@ export default function HomePage() {
             <h2>Odkryj cały odczyt Barbary Auris</h2>
             <p>Pełna interpretacja połączenia, emocji, blokad i dalszego kierunku relacji.</p>
             <div className="price">29,90 zł</div>
-            <button className="primary-button" onClick={() => alert("Tu podepniemy Stripe/BLIK w kolejnym kroku.")}>Odblokuj pełną analizę</button>
-            <small>Płatność jednorazowa • bez subskrypcji</small>
+            <button className="primary-button" disabled={checkoutLoading} onClick={startCheckout}>
+              {checkoutLoading ? "Przenoszę do płatności..." : "Odblokuj pełną analizę"}
+            </button>
+            {checkoutError && <small role="alert">{checkoutError}</small>}
+            {!checkoutError && <small>Płatność jednorazowa • karta lub BLIK • bez subskrypcji</small>}
           </div>
 
-          <button className="text-button" onClick={() => { setShowResult(false); setStarted(false); setStep(0); setData(initialData); }}>Zacznij nową analizę</button>
+          <button className="text-button" onClick={() => { setShowResult(false); setStarted(false); setStep(0); setData(initialData); setCheckoutError(""); }}>Zacznij nową analizę</button>
         </section>
         <Footer />
       </main>
